@@ -3,11 +3,12 @@
 #include "stm32f0xx_rcc.h"
 #include "stm32f0xx_gpio.h"
 
+
 void My_USART2_Init(void);
 void My_GPIO_Init(void);
 void My_Board_Led_GPIO_Init(void);
 void My_I2C_Init(void);
-int My_I2C_SendBytes(I2C_TypeDef* I2Cx,uint8_t Addr,uint8_t *oData,uint16_t Size);
+//int My_I2C_SendBytes(I2C_TypeDef* I2Cx,uint8_t Addr,uint8_t *oData,uint16_t Size);
 
 int main(void)
 {
@@ -31,9 +32,7 @@ int main(void)
 void My_I2C_Init(void)
 {
 	  RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1,ENABLE);
-		RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1,ENABLE);
-		RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1,DISABLE);
-	
+		RCC_I2CCLKConfig(RCC_I2C1CLK_HSI);
 		I2C_InitTypeDef I2C_InitStruct = {0};
 		
 		I2C_InitStruct.I2C_Mode = I2C_Mode_I2C;
@@ -91,39 +90,39 @@ void My_Board_Led_GPIO_Init(void)
 		GPIO_Init(GPIOB,&GPIO_InitStruct);
 }
 
-int My_I2C_SendBytes(I2C_TypeDef* I2Cx,uint8_t Addr,uint8_t *pData,uint16_t Size)
-{
-	while(I2C_GetFlagStatus(I2Cx,I2C_FLAG_BUSY) == SET);//等待标志空闲
-	
-	I2C_TransferHandling(I2Cx,Addr & 0xfe,Size,I2C_AutoEnd_Mode,I2C_Generate_Start_Write);
-	
-	for(uint16_t i = 0;i<Size;i++)
-	{
-		while(1)
-		{
-			if(I2C_GetFlagStatus(I2Cx,I2C_FLAG_NACKF) == SET)
-			{
-				I2C_GenerateSTOP(I2Cx,ENABLE);
-				return -2;
-			}
-			if(I2C_GetFlagStatus(I2Cx,I2C_FLAG_TXIS) == SET)
-				break;
-		}
-		I2C_SendData(I2Cx,pData[i]);
-	}
-	while(1)
-		{
-			if(I2C_GetFlagStatus(I2Cx,I2C_FLAG_NACKF) == SET)
-			{
-				I2C_GenerateSTOP(I2Cx,ENABLE);
-				return -2;
-			}
-			if(I2C_GetFlagStatus(I2Cx, I2C_FLAG_STOPF) == SET)
-        {
-            break;
-        }
-		}
-	I2C_ClearFlag(I2Cx, I2C_FLAG_STOPF);
+//int My_I2C_SendBytes(I2C_TypeDef* I2Cx,uint8_t Addr,uint8_t *pData,uint16_t Size)
+//{
+//	while(I2C_GetFlagStatus(I2Cx,I2C_FLAG_BUSY) == SET);//等待标志空闲
+//	
+//	I2C_TransferHandling(I2Cx,Addr & 0xfe,Size,I2C_AutoEnd_Mode,I2C_Generate_Start_Write);
+//	
+//	for(uint16_t i = 0;i<Size;i++)
+//	{
+//		while(1)
+//		{
+//			if(I2C_GetFlagStatus(I2Cx,I2C_FLAG_NACKF) == SET)
+//			{
+//				I2C_GenerateSTOP(I2Cx,ENABLE);
+//				return -2;
+//			}
+//			if(I2C_GetFlagStatus(I2Cx,I2C_FLAG_TXIS) == SET)
+//				break;
+//		}
+//		I2C_SendData(I2Cx,pData[i]);
+//	}
+//	while(1)
+//		{
+//			if(I2C_GetFlagStatus(I2Cx,I2C_FLAG_NACKF) == SET)
+//			{
+//				I2C_GenerateSTOP(I2Cx,ENABLE);
+//				return -2;
+//			}
+//			if(I2C_GetFlagStatus(I2Cx, I2C_FLAG_STOPF) == SET)
+//        {
+//            break;
+//        }
+//		}
+//	I2C_ClearFlag(I2Cx, I2C_FLAG_STOPF);
 
-  return 0;
-}
+//  return 0;
+//}

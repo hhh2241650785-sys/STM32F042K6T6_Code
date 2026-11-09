@@ -16,6 +16,7 @@
 #include "stm32f0xx_misc.h"
 #include "delay.h"
 #include "usart.h"
+#include "i2c.h"
 
 /* Assert configuration */
 #ifdef USE_FULL_ASSERT

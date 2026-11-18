@@ -3,21 +3,152 @@
 #include "stm32f0xx_rcc.h"
 #include "stm32f0xx_gpio.h"
 
+uint8_t buffer[10];
+uint8_t a = 0;
+
 void My_USART_Init(void);
 void My_GPIO_Init(void);
 void My_Board_Led_GPIO_Init(void);
 void My_I2C_Init(void);
 void My_SPI_init(void);
+void App_SPI_MasterTransmidReceive(SPI_TypeDef *SPIx,const uint8_t* pDataTx,uint8_t *pDataRx,uint16_t Size);
+void App_W25Q64_SaveByte(uint8_t Byte);
+uint8_t App_W25Q64_LoadByte(void);
 
 int main(void)
 {
 	My_SPI_init();
+	
+	App_W25Q64_SaveByte(0x12);
+	
+	a = App_W25Q64_LoadByte();
+	
 	while (1)
 	{
 			/* Main loop */
 	}
 }
 
+uint8_t App_W25Q64_LoadByte(void)
+{
+	buffer[0] = 0x03;
+	buffer[1] = 0x00;
+	buffer[2] = 0x00;
+	buffer[3] = 0x00;
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
+	
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,4);
+	
+	buffer[0] = 0xff;
+	
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,1);
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_SET);
+	
+	return buffer[0];
+}
+
+void App_W25Q64_SaveByte(uint8_t Byte)
+{
+
+	buffer[0] = 0x06;
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
+	
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,1);
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_SET);
+	
+	buffer[0] = 0x20;
+	buffer[1] = 0x00;
+	buffer[2] = 0x00;
+	buffer[3] = 0x00;
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
+	
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,4);
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_SET);
+	
+	while(1)
+	{
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
+	
+	buffer[0] = 0x05;
+		
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,1);
+	
+	buffer[0] = 0xff;
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,1);
+		
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_SET);
+		
+	if((buffer[0]&0x01) == 0)
+		break;
+	
+	}
+	
+	buffer[0] = 0x06;
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
+	
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,1);
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_SET);
+	
+	buffer[0] = 0x02;
+	buffer[1] = 0x00;
+	buffer[2] = 0x00;
+	buffer[3] = 0x00;
+	buffer[4] = Byte;
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
+	
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,5);
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_SET);
+	
+		while(1)
+	{
+	
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
+	
+	buffer[0] = 0x05;
+		
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,1);
+	
+	buffer[0] = 0xff;
+	App_SPI_MasterTransmidReceive(SPI1,buffer,buffer,1);
+		
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_SET);
+		
+	if((buffer[0]&0x01) == 0)
+		break;
+	
+	}
+}
+	
+void App_SPI_MasterTransmidReceive(SPI_TypeDef *SPIx,const uint8_t* pDataTx,uint8_t *pDataRx,uint16_t Size)
+{
+	SPI_Cmd(SPI1,ENABLE);
+	
+	SPI_SendData8(SPI1,pDataTx[0]);
+	for(uint8_t i = 1;i<Size;i++)
+	{
+		while(SPI_I2S_GetFlagStatus(SPI1,SPI_I2S_FLAG_TXE) == RESET);
+		SPI_SendData8(SPI1,pDataTx[i]);
+		while(SPI_I2S_GetFlagStatus(SPI1,SPI_I2S_FLAG_RXNE) == RESET);
+		pDataRx[i-1] = SPI_ReceiveData8(SPI1);
+	}	
+	while(SPI_I2S_GetFlagStatus(SPI1,SPI_I2S_FLAG_RXNE) == RESET);
+	pDataRx[Size - 1] = SPI_ReceiveData8(SPI1);
+	
+	SPI_Cmd(SPI1,DISABLE);
+	
+}
+	
 void My_SPI_init(void)
 {
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA,ENABLE);
@@ -41,10 +172,29 @@ void My_SPI_init(void)
 	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_3;
 	
 	GPIO_Init(GPIOA,&GPIO_InitStruct);
+	GPIO_WriteBit(GPIOA,GPIO_Pin_3,Bit_RESET);
 	
 	GPIO_PinAFConfig(GPIOA,GPIO_PinSource5,GPIO_AF_0);
 	GPIO_PinAFConfig(GPIOA,GPIO_PinSource7,GPIO_AF_0);
 	GPIO_PinAFConfig(GPIOA,GPIO_PinSource6,GPIO_AF_0);
+	
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);
+	
+	SPI_InitTypeDef SPI_InitStruct = {0};
+	SPI_InitStruct.SPI_Mode = SPI_Mode_Master;
+	SPI_InitStruct.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
+	SPI_InitStruct.SPI_CPHA = SPI_CPHA_1Edge;
+	SPI_InitStruct.SPI_CPOL = SPI_CPOL_Low;
+	SPI_InitStruct.SPI_DataSize = SPI_DataSize_8b;
+	SPI_InitStruct.SPI_FirstBit = SPI_FirstBit_MSB;
+	SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_64;
+	SPI_InitStruct.SPI_NSS = SPI_NSS_Soft;
+	
+	SPI_Init(SPI1,&SPI_InitStruct);
+	
+	SPI_RxFIFOThresholdConfig(SPI1, SPI_RxFIFOThreshold_QF);
+	
+	SPI_NSSInternalSoftwareConfig(SPI1,SPI_NSSInternalSoft_Set);
 }
 
 void My_I2C_Init(void)

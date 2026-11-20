@@ -4,7 +4,7 @@
 #include "stm32f0xx_gpio.h"
 
 uint8_t buffer[10];
-uint8_t a = 0;
+Button_TypeDef button1;
 
 void My_USART_Init(void);
 void My_GPIO_Init(void);
@@ -14,18 +14,64 @@ void My_SPI_init(void);
 void App_SPI_MasterTransmidReceive(SPI_TypeDef *SPIx,const uint8_t* pDataTx,uint8_t *pDataRx,uint16_t Size);
 void App_W25Q64_SaveByte(uint8_t Byte);
 uint8_t App_W25Q64_LoadByte(void);
+void App_Button_Init(void);
+void button_clicked_cb(uint8_t clicks);
 
 int main(void)
 {
+	My_Board_Led_GPIO_Init();
+	
+	App_Button_Init();
+	
 	My_SPI_init();
 	
-	App_W25Q64_SaveByte(0x12);
-	
-	a = App_W25Q64_LoadByte();
+	BitAction status = (BitAction)App_W25Q64_LoadByte();
+	GPIO_WriteBit(GPIOB,GPIO_Pin_3,status);
 	
 	while (1)
 	{
 			/* Main loop */
+		My_Button_Proc(&button1);
+	}
+}
+
+void App_Button_Init(void)
+{
+	Button_InitTypeDef Button_InitStruct = {0};
+	
+	Button_InitStruct.button_clicked_cb = button_clicked_cb;
+	Button_InitStruct.button_pressed_cb = 0;
+	Button_InitStruct.button_long_pressed_cb = 0;
+	Button_InitStruct.button_released_cb = 0;
+	Button_InitStruct.ClickInterval = 0;
+	Button_InitStruct.GPIOx = GPIOB;
+	Button_InitStruct.GPIO_Pin = GPIO_Pin_5;
+	Button_InitStruct.LongPressTickInterval  = 0;
+	Button_InitStruct.LongPressTime = 0;
+	
+	My_Button_Init(&button1,&Button_InitStruct);
+	
+}
+
+void button_clicked_cb(uint8_t clicks)
+{
+	if(clicks == 1)
+	{
+		if(GPIO_ReadOutputDataBit(GPIOB,GPIO_Pin_3) == Bit_SET)
+		{
+			GPIO_WriteBit(GPIOB,GPIO_Pin_3,Bit_RESET);
+			App_W25Q64_SaveByte(Bit_RESET);
+		}
+		else
+		{
+			GPIO_WriteBit(GPIOB,GPIO_Pin_3,Bit_SET);
+			App_W25Q64_SaveByte(Bit_SET);
+		}
+	}
+	else if(clicks == 2)
+	{
+		GPIO_WriteBit(GPIOB,GPIO_Pin_3,Bit_RESET);
+		App_W25Q64_SaveByte(Bit_RESET);
 	}
 }
 

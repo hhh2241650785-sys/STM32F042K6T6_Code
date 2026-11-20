@@ -19,6 +19,7 @@
 #include "i2c.h"
 #include "si2c.h"
 #include "oled.h"
+#include "button.h"
 
 /* Assert configuration */
 #ifdef USE_FULL_ASSERT
